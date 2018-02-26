@@ -33,6 +33,7 @@
 
 #include "include/version.h"
 #include "include/hcxdumptool.h"
+#include "include/endianness.h"
 #include "include/ieee80211.c"
 #include "include/pcap.c"
 #include "include/strings.c"
@@ -558,16 +559,11 @@ while(1)
 	pkh->orig_len = caplen;
 	packet_ptr = &packetin[PCAPREC_SIZE];
 	rth = (rth_t*)packet_ptr;
-	#ifdef BIG_ENDIAN_HOST
-	rth->it_len	= byte_swap_16(rth->it_len);
-	rth->it_present	= byte_swap_32(rth->it_present);
-	#endif
-	packet_ptr += rth->it_len;
-	caplen -= rth->it_len;
+	rth->it_present = end_le32toh(rth->it_present);
+	packet_ptr += end_le16toh(rth->it_len);
+	caplen -= end_le16toh(rth->it_len);
 	fcs = (fcs_t*)(packet_ptr +caplen -4);
-	#ifdef BIG_ENDIAN_HOST
-	fcs->fcs	= byte_swap_32(fcs->fcs);
-	#endif
+	fcs->fcs	= end_le32toh(fcs->fcs);
 	crc = fcscrc32check(packet_ptr, caplen -4);
 	if(crc == fcs->fcs)
 		{
