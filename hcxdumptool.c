@@ -672,12 +672,12 @@ while(1)
 				continue;
 				}
 			llc = (llc_t*)(packet_ptr +MAC_SIZE_NORM);
-			if(((ntohs(llc->type)) == LLC_TYPE_AUTH)&& (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
+			if(((end_ntoh16(llc->type)) == LLC_TYPE_AUTH)&& (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
 				{
 				write(fd_pcap, packetin, pkh->incl_len +PCAPREC_SIZE);
 				continue;
 				}
-			else if(((ntohs(llc->type)) == LLC_TYPE_IPV4) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
+			else if(((end_ntoh16(llc->type)) == LLC_TYPE_IPV4) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
 				{
 				if(fd_ippcap != 0)
 					{
@@ -685,7 +685,7 @@ while(1)
 					}
 				continue;
 				}
-			else if(((end_le16toh(llc->type)) == LLC_TYPE_IPV6) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
+			else if(((end_ntoh16(llc->type)) == LLC_TYPE_IPV6) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
 				{
 				if(fd_ippcap != 0)
 					{
@@ -702,12 +702,12 @@ while(1)
 				continue;
 				}
 			llc = (llc_t*)(packet_ptr +MAC_SIZE_QOS);
-			if(((ntohs(llc->type)) == LLC_TYPE_AUTH) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
+			if(((end_ntoh16(llc->type)) == LLC_TYPE_AUTH) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
 				{
 				write(fd_pcap, packetin, pkh->incl_len +PCAPREC_SIZE);
 				continue;
 				}
-			else if(((ntohs(llc->type)) == LLC_TYPE_IPV4) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
+			else if(((end_ntoh16(llc->type)) == LLC_TYPE_IPV4) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
 				{
 				if(fd_ippcap != 0)
 					{
@@ -715,7 +715,7 @@ while(1)
 					}
 				continue;
 				}
-			else if(((ntohs(llc->type)) == LLC_TYPE_IPV6) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
+			else if(((end_ntoh16(llc->type)) == LLC_TYPE_IPV6) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
 				{
 				if(fd_ippcap != 0)
 					{
