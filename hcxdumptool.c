@@ -124,6 +124,7 @@ pcaprec_hdr_t *pkh;
 uint8_t *packet_ptr;
 mac_t *mac_ptr;
 ietag_t *essid_tag;
+llc_t *llc;
 
 int caplen;
 uint8_t packetin[PCAP_SNAPLEN +PCAPREC_SIZE];
@@ -520,7 +521,7 @@ while(1)
 			}
 		if(wantstatusflag == true)
 			{
-			printf("INFO.....: cha=%d, rcv=%llu, err=%d\r", channelscanlist[cpa], packetcount, errorcount);
+			printf("\33[2KINFO.....: cha=%d, rcv=%llu, err=%d\r", channelscanlist[cpa], packetcount, errorcount);
 			}
 		channelsetflag = false;
 		send_broadcastbeacon();
@@ -666,16 +667,61 @@ while(1)
 			}
 		else if((mac_ptr->subtype == IEEE80211_STYPE_DATA) || (mac_ptr->subtype == IEEE80211_STYPE_DATA_CFACK) || (mac_ptr->subtype == IEEE80211_STYPE_DATA_CFPOLL) || (mac_ptr->subtype == IEEE80211_STYPE_DATA_CFACKPOLL))
 			{
-
-
-
+			if(caplen < (int)(MAC_SIZE_NORM +LLC_SIZE))
+				{
+				continue;
+				}
+			llc = (llc_t*)(packet_ptr +MAC_SIZE_NORM);
+			if(((ntohs(llc->type)) == LLC_TYPE_AUTH)&& (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
+				{
+				write(fd_pcap, packetin, pkh->incl_len +PCAPREC_SIZE);
+				continue;
+				}
+			else if(((ntohs(llc->type)) == LLC_TYPE_IPV4) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
+				{
+				if(fd_ippcap != 0)
+					{
+					write(fd_ippcap, packetin, pkh->incl_len +PCAPREC_SIZE);
+					}
+				continue;
+				}
+			else if(((end_le16toh(llc->type)) == LLC_TYPE_IPV6) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
+				{
+				if(fd_ippcap != 0)
+					{
+					write(fd_ippcap, packetin, pkh->incl_len +PCAPREC_SIZE);
+					}
+				continue;
+				}
 			continue;
 			}
 		else if((mac_ptr->subtype == IEEE80211_STYPE_QOS_DATA) || (mac_ptr->subtype == IEEE80211_STYPE_QOS_DATA_CFACK) || (mac_ptr->subtype == IEEE80211_STYPE_QOS_DATA_CFPOLL) || (mac_ptr->subtype == IEEE80211_STYPE_QOS_DATA_CFACKPOLL))
 			{
-
-
-
+			if(caplen < (int)(MAC_SIZE_QOS +LLC_SIZE))
+				{
+				continue;
+				}
+			llc = (llc_t*)(packet_ptr +MAC_SIZE_QOS);
+			if(((ntohs(llc->type)) == LLC_TYPE_AUTH) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
+				{
+				write(fd_pcap, packetin, pkh->incl_len +PCAPREC_SIZE);
+				continue;
+				}
+			else if(((ntohs(llc->type)) == LLC_TYPE_IPV4) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
+				{
+				if(fd_ippcap != 0)
+					{
+					write(fd_ippcap, packetin, pkh->incl_len +PCAPREC_SIZE);
+					}
+				continue;
+				}
+			else if(((ntohs(llc->type)) == LLC_TYPE_IPV6) && (llc->dsap == LLC_SNAP) && (llc->ssap == LLC_SNAP))
+				{
+				if(fd_ippcap != 0)
+					{
+					write(fd_ippcap, packetin, pkh->incl_len +PCAPREC_SIZE);
+					}
+				}
 			continue;
 			}
 		}
@@ -1057,6 +1103,12 @@ if(showinterfaces == true)
 if(interfacename == NULL)
 	{
 	fprintf(stderr, "no interface selected\n");
+	exit(EXIT_FAILURE);
+	}
+
+if(pcapoutname == NULL)
+	{
+	fprintf(stderr, "no output pcap file selected\n");
 	exit(EXIT_FAILURE);
 	}
 
