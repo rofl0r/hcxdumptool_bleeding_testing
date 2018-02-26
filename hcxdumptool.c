@@ -63,6 +63,7 @@ static char *interfacename = NULL;
 static char *pcapoutname = NULL;
 static char *ippcapoutname = NULL;
 
+static macessidlist_t *macapessidliste = NULL;
 static macessidlist_t *macstaessidliste = NULL;
 
 static int errorcause = EXIT_SUCCESS;
@@ -256,6 +257,65 @@ if(retw <= 0)
 return;
 }
 /*===========================================================================*/
+void writemacap()
+{
+macessidlist_t *zeiger;
+int c;
+
+zeiger = macapessidliste;
+for(c = 0; c < MACAPESSIDLISTZEMAX -1; c++)
+	{
+	if(memcmp(&mac_null, zeiger->addr, 6) == 0)
+		{
+		break;
+		}
+	if((memcmp(zeiger->addr, mac_ptr->addr2, 6) == 0) && (zeiger->essid_len == essid_tag->len) && (memcmp(zeiger->essid, essid_tag->data, essid_tag->len) == 0))
+		{
+		zeiger->tv_sec = tv.tv_sec;
+		return;
+		}
+	zeiger++;
+	}
+
+zeiger->tv_sec = tv.tv_sec;
+memcpy(zeiger->addr, mac_ptr->addr2, 6);
+zeiger->essid_len = essid_tag->len;
+memset(zeiger->essid, 0, 6);
+memcpy(zeiger->essid, essid_tag->data, essid_tag->len);
+write(fd_pcap, packetin, pkh->incl_len +PCAPREC_SIZE);
+qsort(macapessidliste, MACAPESSIDLISTZEMAX , MACESSIDLIST_SIZE, sort_macessidlist_by_time);
+return;
+}
+/*===========================================================================*/
+void writemacsta()
+{
+macessidlist_t *zeiger;
+int c;
+
+zeiger = macstaessidliste;
+for(c = 0; c < MACSTAESSIDLISTZEMAX -1; c++)
+	{
+	if(memcmp(&mac_null, zeiger->addr, 6) == 0)
+		{
+		break;
+		}
+	if((memcmp(zeiger->addr, mac_ptr->addr2, 6) == 0) && (zeiger->essid_len == essid_tag->len) && (memcmp(zeiger->essid, essid_tag->data, essid_tag->len) == 0))
+		{
+		zeiger->tv_sec = tv.tv_sec;
+		return;
+		}
+	zeiger++;
+	}
+
+zeiger->tv_sec = tv.tv_sec;
+memcpy(zeiger->addr, mac_ptr->addr2, 6);
+zeiger->essid_len = essid_tag->len;
+memset(zeiger->essid, 0, 6);
+memcpy(zeiger->essid, essid_tag->data, essid_tag->len);
+write(fd_pcap, packetin, pkh->incl_len +PCAPREC_SIZE);
+qsort(macstaessidliste, MACSTAESSIDLISTZEMAX , MACESSIDLIST_SIZE, sort_macessidlist_by_time);
+return;
+}
 /*===========================================================================*/
 ietag_t *getessidtag(uint8_t taglen, uint8_t *tagdata)
 {
@@ -283,33 +343,61 @@ return NULL;
 }
 /*===========================================================================*/
 /*===========================================================================*/
+void handle_beacon()
+{
+
+essid_tag = (ietag_t*)getessidtag(caplen -MAC_SIZE_NORM -CAPABILITIESAP_SIZE, packet_ptr +MAC_SIZE_NORM +CAPABILITIESAP_SIZE);
+
+
+
+if(essid_tag != NULL)
+	{
+	writemacap();
+	}
+return;
+}
+/*===========================================================================*/
 void handle_directedproberequest()
 {
-printfaddr13(mac_ptr->addr1, mac_ptr->addr2, mac_ptr->addr3, "probe");
-essid_tag = (ietag_t*)getessidtag(caplen-MAC_SIZE_NORM, packet_ptr +MAC_SIZE_NORM);
+essid_tag = (ietag_t*)getessidtag(caplen -MAC_SIZE_NORM, packet_ptr +MAC_SIZE_NORM);
+
+//printfaddr13(mac_ptr->addr1, mac_ptr->addr2, mac_ptr->addr3, "ui-probe");
 
 
 
-
-
+if(essid_tag != NULL)
+	{
+	writemacsta();
+	}
 return;
 }
 /*===========================================================================*/
 void handle_undirectedproberequest()
 {
-printfaddr13(mac_ptr->addr1, mac_ptr->addr2, mac_ptr->addr3, "ui-probe");
 essid_tag = (ietag_t*)getessidtag(caplen-MAC_SIZE_NORM, packet_ptr +MAC_SIZE_NORM);
+
+
+
 
 if(essid_tag != NULL)
 	{
-	printf(" %d ",essid_tag->len);
-	fwrite(essid_tag->data, essid_tag->len, 1, stdout);
-	printf("\n");
+	writemacsta();
 	}
 return;
 }
 /*===========================================================================*/
+void handle_proberesponse()
+{
+essid_tag = (ietag_t*)getessidtag(caplen -MAC_SIZE_NORM -CAPABILITIESAP_SIZE, packet_ptr +MAC_SIZE_NORM +CAPABILITIESAP_SIZE);
 
+
+
+if(essid_tag != NULL)
+	{
+	writemacap();
+	}
+return;
+}
 /*===========================================================================*/
 __attribute__ ((noreturn))
 static void globalclose()
@@ -496,11 +584,9 @@ while(1)
 			{
 			if(memcmp(&mac_myap, mac_ptr->addr2, 6) == 0)
 				{
-
-
-
 				continue;
 				}
+			handle_beacon();
 			}
 		else if(mac_ptr->subtype == IEEE80211_STYPE_PROBE_REQ)
 			{
@@ -522,9 +608,7 @@ while(1)
 			}
 		else if(mac_ptr->subtype == IEEE80211_STYPE_PROBE_RESP)
 			{
-
-
-
+			handle_proberesponse();
 			continue;
 			}
 		else if(mac_ptr->subtype == IEEE80211_STYPE_AUTH)
@@ -538,28 +622,28 @@ while(1)
 			{ 
 
 
-
+			write(fd_pcap, packetin, pkh->incl_len +PCAPREC_SIZE);
 			continue;
 			}
 		else if(mac_ptr->subtype == IEEE80211_STYPE_ASSOC_RESP)
 			{ 
 
 
-
+			write(fd_pcap, packetin, pkh->incl_len +PCAPREC_SIZE);
 			continue;
 			}
 		else if(mac_ptr->subtype == IEEE80211_STYPE_REASSOC_REQ)
 			{ 
 
 
-
+			write(fd_pcap, packetin, pkh->incl_len +PCAPREC_SIZE);
 			continue;
 			}
 		else if(mac_ptr->subtype == IEEE80211_STYPE_REASSOC_RESP)
 			{ 
 
 
-
+			write(fd_pcap, packetin, pkh->incl_len +PCAPREC_SIZE);
 			continue;
 			}
 		continue;
@@ -733,6 +817,10 @@ if((macstaessidliste = calloc((MACSTAESSIDLISTZEMAX), MACESSIDLIST_SIZE)) == NUL
 	{
 	return false;
 	}
+if((macapessidliste = calloc((MACAPESSIDLISTZEMAX), MACESSIDLIST_SIZE)) == NULL)
+	{
+	return false;
+	}
 
 tvfd.tv_sec = 0;
 tvfd.tv_usec = 0;
@@ -885,10 +973,6 @@ int main(int argc, char *argv[])
 {
 static int auswahl;
 
-static char *eigenpfadname, *eigenname;
-eigenpfadname = strdupa(argv[0]);
-eigenname = basename(eigenpfadname);
-
 srand(time(NULL));
 setbuf(stdout, NULL);
 while ((auswahl = getopt(argc, argv, "i:o:O:c:t:T:DRAsIhv")) != -1)
@@ -958,13 +1042,13 @@ while ((auswahl = getopt(argc, argv, "i:o:O:c:t:T:DRAsIhv")) != -1)
 		break;
 
 		case 'h':
-		usage(eigenname);
+		usage(basename(argv[0]));
 
 		case 'v':
-		version(eigenname);
+		version(basename(argv[0]));
 
 		default:
-		usageerror(eigenname);
+		usageerror(basename(argv[0]));
 		}
 	}
 

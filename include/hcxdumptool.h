@@ -1,3 +1,4 @@
+#define MACAPESSIDLISTZEMAX 128
 #define MACSTAESSIDLISTZEMAX 256
 
 
@@ -39,7 +40,7 @@ struct maclist_s
 {
  long int	tv_sec;
  uint8_t	status;
- uint8_t	mac_ap[6];
+ uint8_t	addr[6];
 };
 typedef struct maclist_s maclist_t;
 #define	MACLIST_SIZE (sizeof(maclist_t))
@@ -54,7 +55,7 @@ return ia->tv_sec < ib->tv_sec;
 struct macessidlist_s
 {
  long int	tv_sec;
- uint8_t	mac_ap[6];
+ uint8_t	addr[6];
  uint8_t	essid_len;
  uint8_t	essid[32];
 };
