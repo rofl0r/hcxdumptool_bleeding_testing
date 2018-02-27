@@ -23,8 +23,7 @@
 #include <net/if.h>
 #include <arpa/inet.h>
 #include <net/ethernet.h>
-#include <linux/if_packet.h>
-#include <linux/wireless.h>
+#include <netpacket/packet.h>
 #include <pthread.h>
 
 #ifdef DOGPIOSUPPORT
@@ -37,6 +36,7 @@
 #include "include/pcap.c"
 #include "include/strings.c"
 #include "include/hashops.c"
+#include "wireless-lite.h"
 
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define BIG_ENDIAN_HOST
