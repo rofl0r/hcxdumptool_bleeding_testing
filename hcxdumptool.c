@@ -120,15 +120,15 @@ static uint8_t mac_mysta[6];
 struct timeval tv;
 struct timeval tvfd;
 
-pcaprec_hdr_t *pkh;
-uint8_t *packet_ptr;
-mac_t *mac_ptr;
-ietag_t *essid_tag;
-llc_t *llc;
+static pcaprec_hdr_t *pkh;
+static uint8_t *packet_ptr;
+static mac_t *mac_ptr;
+static authf_t* authentication_ptr;
+static ietag_t *essid_tag;
+static llc_t *llc;
 
-int caplen;
-uint8_t packetin[PCAP_SNAPLEN +PCAPREC_SIZE];
-
+static int caplen;
+static uint8_t packetin[PCAP_SNAPLEN +PCAPREC_SIZE];
 
 /*===========================================================================*/
 static void printfaddr13(uint8_t *addr1, uint8_t *addr2, uint8_t *addr3, char *info)
@@ -252,6 +252,71 @@ if(mysequencenr >= 4096)
 memcpy(&packetout[HDRRT_SIZE +MAC_SIZE_NORM], &undirectedproberequestdata, UNDIRECTEDPROBEREQUEST_SIZE);
 packetout[HDRRT_SIZE +MAC_SIZE_NORM +0x14] = channelscanlist[cpa];
 retw = write(fd_socket, packetout, HDRRT_SIZE +MAC_SIZE_NORM +UNDIRECTEDPROBEREQUEST_SIZE);
+if(retw <= 0)
+	{
+	errorcount++;
+	}
+return;
+}
+/*===========================================================================*/
+static void send_acknowledgement()
+{
+int retw;
+mac_t *macf;
+uint8_t packetout[HDRRT_SIZE +MAC_SIZE_ACK +1];
+
+if(respondflag == true)
+	{
+	return;
+	}
+memset(&packetout, 0, HDRRT_SIZE +MAC_SIZE_ACK +1);
+memcpy(&packetout, &hdradiotap, HDRRT_SIZE);
+macf = (mac_t*)(packetout +HDRRT_SIZE);
+macf->type = IEEE80211_FTYPE_CTL;
+macf->subtype = IEEE80211_STYPE_ACK;
+macf->duration = 0x013a;
+memcpy(macf->addr1, mac_ptr->addr2, 6);
+retw = write(fd_socket, packetout, HDRRT_SIZE +MAC_SIZE_ACK);
+if(retw <= 0)
+	{
+	errorcount++;
+	}
+return;
+}
+/*===========================================================================*/
+static void send_authenticationresponse()
+{
+int retw;
+mac_t *macf;
+
+const uint8_t authenticationresponsedata[] =
+{
+0x00, 0x00, 0x02, 0x00, 0x00, 0x00
+};
+#define MYAUTHENTICATIONRESPONSE_SIZE sizeof(authenticationresponsedata)
+
+uint8_t packetout[HDRRT_SIZE +MAC_SIZE_NORM +MYAUTHENTICATIONRESPONSE_SIZE +1];
+
+if(respondflag == true)
+	{
+	return;
+	}
+memset(&packetout, 0, HDRRT_SIZE +MAC_SIZE_NORM +MYAUTHENTICATIONRESPONSE_SIZE +1);
+memcpy(&packetout, &hdradiotap, HDRRT_SIZE);
+macf = (mac_t*)(packetout +HDRRT_SIZE);
+macf->type = IEEE80211_FTYPE_MGMT;
+macf->subtype = IEEE80211_STYPE_AUTH;
+memcpy(macf->addr1, mac_ptr->addr1, 6);
+memcpy(macf->addr2, mac_ptr->addr1, 6);
+memcpy(macf->addr3, mac_ptr->addr1, 6);
+macf->duration = 0x013a;
+macf->sequence = mysequencenr++ << 4;
+if(mysequencenr >= 4096)
+	{
+	mysequencenr = 0;
+	}
+memcpy(&packetout[HDRRT_SIZE +MAC_SIZE_NORM], &authenticationresponsedata, MYAUTHENTICATIONRESPONSE_SIZE);
+retw = write(fd_socket, packetout, HDRRT_SIZE +MAC_SIZE_NORM +MYAUTHENTICATIONRESPONSE_SIZE);
 if(retw <= 0)
 	{
 	errorcount++;
@@ -610,9 +675,13 @@ while(1)
 			}
 		else if(mac_ptr->subtype == IEEE80211_STYPE_AUTH)
 			{ 
-
-
-
+			packet_ptr += MAC_SIZE_NORM;
+			authentication_ptr = (authf_t*)mac_ptr;
+			if(authentication_ptr->authentication_seq == 1)
+				{
+				send_acknowledgement();
+				send_authenticationresponse();
+				}
 			continue;
 			}
 		else if(mac_ptr->subtype == IEEE80211_STYPE_ASSOC_REQ)
